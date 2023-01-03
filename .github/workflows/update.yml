@@ -1,0 +1,166 @@
+name: Responsive Ports Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'port repository'
+        required: true
+        type: string
+      name:
+        description: 'port name'
+        required: true
+        type: string
+      version:
+        description: 'port version'
+        required: true
+        type: string
+      filename:
+        description: 'release filename'
+        required: true
+        type: string
+      url:
+        description: 'release url'
+        required: true
+        type: string
+      hash:
+        description: 'release hash'
+        required: true
+        type: string
+        
+jobs:
+  update:
+    runs-on: macos-latest
+
+    env:
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        id: vcpkg-cache
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg
+          key: vcpkg-cache-${{ runner.os }}
+      
+      - name: Vcpkg - Install Tool
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ ! -d vcpkg ]; then
+            git clone https://github.com/Microsoft/vcpkg.git --depth=1
+            cd vcpkg
+            ./bootstrap-vcpkg.sh
+          fi
+      
+      - name: Vcpkg - Copy Scripts
+        working-directory: ${{ github.workspace }}
+        run: |
+          cp -fr vcpkg/scripts ./scripts
+
+      - name: Event Info
+        run: |
+          echo PORT_REPO="${{ github.event.inputs.repository }}" >> ${GITHUB_ENV}
+          echo PORT_NAME="${{ github.event.inputs.name }}" >> ${GITHUB_ENV}
+          echo PORT_VERSION="${{ github.event.inputs.version }}" >> ${GITHUB_ENV}
+          echo PORT_HOMEPAGE="https://github.com/${{ github.event.inputs.repository }}" >> ${GITHUB_ENV}
+          echo REL_FILENAME="${{ github.event.inputs.filename }}" >> ${GITHUB_ENV}
+          echo REL_URL="${{ github.event.inputs.url }}" >> ${GITHUB_ENV}
+          echo REL_HASH="${{ github.event.inputs.hash }}" >> ${GITHUB_ENV}
+
+      - name: Download Port
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone ${{ env.PORT_HOMEPAGE }} --depth=1 -b ${{ env.PORT_VERSION }}
+
+      - name: Update Port/vcpkg.json
+        working-directory: ${{ github.workspace }}
+        run: |
+          PORT_PATH=ports/${{ env.PORT_NAME }}
+          mkdir -p ${PORT_PATH}
+          JSON={}
+          JSON=$(echo $JSON | jq '. + { "name": "${{ env.PORT_NAME }}" }')
+          JSON=$(echo $JSON | jq '. + { "version": "${{ env.PORT_VERSION }}" }')
+          JSON=$(echo $JSON | jq '. + { "homepage": "${{ env.PORT_HOMEPAGE }}" }')
+          JSON=$(echo $JSON | jq ". + $(cat ${{ env.PORT_NAME }}/vcpkg.json)")
+          echo $JSON | jq '.' > ${PORT_PATH}/vcpkg.json
+          vcpkg format-manifest ${PORT_PATH}/vcpkg.json --vcpkg-root=.
+      
+      - name: Delete Port
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -fr ${{ env.PORT_NAME }}
+
+      - name: Download Distfile
+        working-directory: ${{ github.workspace }}
+        run: |
+          curl -L ${{ env.REL_URL }} -o ${{ env.REL_FILENAME }}
+          if [[ "$(vcpkg hash ${{ env.REL_FILENAME }})" != "${{ env.REL_HASH }}" ]]; then
+            echo "未通过HASH校验"
+            exit 1
+          fi
+
+      - name: Update Port/portfile.cmake
+        working-directory: ${{ github.workspace }}
+        run: |
+          PORT_PATH=ports/${{ env.PORT_NAME }}
+          mkdir -p ${PORT_PATH}
+          cat > ${PORT_PATH}/portfile.cmake <<EOF
+          vcpkg_download_distfile(ARCHIVE
+            URLS "${{ env.REL_URL }}"
+            FILENAME "${{ env.REL_FILENAME }}"
+            SHA512 ${{ env.REL_HASH }}
+          )
+
+          vcpkg_extract_source_archive(
+            SOURCE_PATH
+            ARCHIVE "\${ARCHIVE}"
+            NO_REMOVE_ONE_LEVEL
+          )
+
+          vcpkg_cmake_configure(
+            SOURCE_PATH "\${SOURCE_PATH}"
+            OPTIONS
+              -DRELEASE_VERSION=${{ env.PORT_VERSION }}
+          )
+
+          vcpkg_cmake_install()
+          vcpkg_cmake_config_fixup()
+
+          file(REMOVE_RECURSE "\${CURRENT_PACKAGES_DIR}/debug/include")
+
+          vcpkg_install_copyright(FILE_LIST "\${SOURCE_PATH}/LICENSE")
+          EOF
+
+      - name: Delete Distfile
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm ${{ env.REL_FILENAME }}
+
+      - name: Check ports
+        working-directory: ${{ github.workspace }}
+        run: |
+          PORT_PATH=ports/${{ env.PORT_NAME }}
+          cat ${PORT_PATH}/vcpkg.json
+          cat ${PORT_PATH}/portfile.cmake
+
+      - name: Update Registry
+        working-directory: ${{ github.workspace }}
+        run: |
+          git add ports
+          if [[ "$(git status)" =~ "nothing to commit" ]];then
+            echo "更新内容为空"
+            exit 1
+          fi
+          if [[ "$(git status)" =~ "new file" ]];then
+            COMMIT_MSG="Add ${{ env.PORT_NAME }} ${{ env.PORT_VERSION }}"
+          fi
+          if [[ "$(git status)" =~ "modified" ]];then
+            COMMIT_MSG="Update ${{ env.PORT_NAME }} ${{ env.PORT_VERSION }}"
+          fi
+          git commit -m "${COMMIT_MSG}"
+          vcpkg x-add-version ${{ env.PORT_NAME }} --vcpkg-root=./
+          git add versions
+          git commit -m "${COMMIT_MSG}" --amend
+          git push origin master
