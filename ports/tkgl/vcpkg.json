@@ -1,0 +1,36 @@
+{
+  "name": "tkgl",
+  "version": "1.0.0",
+  "description": "The tkgl is a port of tkregistry",
+  "homepage": "https://github.com/TKCPlusProjects/tkgl",
+  "dependencies": [
+    {
+      "name": "boost-test",
+      "version>=": "1.82.0#2"
+    },
+    {
+      "name": "glad",
+      "version>=": "0.1.36"
+    },
+    {
+      "name": "glfw3",
+      "version>=": "3.3.8#2"
+    },
+    {
+      "name": "glm",
+      "version>=": "2023-06-08"
+    },
+    {
+      "name": "tkcore",
+      "version>=": "1.0.0"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
