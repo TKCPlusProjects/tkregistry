@@ -1,11 +1,17 @@
 {
   "name": "tkcore",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "The tkcore is a port of tkregistry",
   "homepage": "https://github.com/TKCPlusProjects/tkcore",
   "dependencies": [
-    "boost-stacktrace",
-    "boost-test",
+    {
+      "name": "boost-stacktrace",
+      "version>=": "1.82.0#2"
+    },
+    {
+      "name": "boost-test",
+      "version>=": "1.82.0#2"
+    },
     {
       "name": "vcpkg-cmake",
       "host": true
