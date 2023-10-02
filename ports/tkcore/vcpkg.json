@@ -1,6 +1,6 @@
 {
   "name": "tkcore",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "The tkcore is a port of tkregistry",
   "homepage": "https://github.com/TKCPlusProjects/tkcore",
   "dependencies": [
