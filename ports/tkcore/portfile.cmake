@@ -1,7 +1,7 @@
 vcpkg_download_distfile(ARCHIVE
-  URLS "https://github.com/TKCPlusProjects/tkcore/releases/download/1.0.5/tkcore-1.0.5.zip"
-  FILENAME "tkcore-1.0.5.zip"
-  SHA512 c27e0977fa4d0d04ec117cf4a408bb7117ee61b81752d78ab635c2eb6249fae876340f1c3cce122aa91494fb2473f8e65fc5fb02678ffac36600a5f68a4164ec
+  URLS "https://github.com/TKCPlusProjects/tkcore/releases/download/1.0.6/tkcore-1.0.6.zip"
+  FILENAME "tkcore-1.0.6.zip"
+  SHA512 6253cddf596b0fe416e044ccfe341280580633438b93dcef8a8b5ce2ea850e521941aae2e4c47a8daa7003ed82fd3458422b59f9006eadadcc0c760fda861e86
 )
 
 vcpkg_extract_source_archive(
@@ -13,7 +13,7 @@ vcpkg_extract_source_archive(
 vcpkg_cmake_configure(
   SOURCE_PATH "${SOURCE_PATH}"
   OPTIONS
-    -DRELEASE_VERSION=1.0.5
+    -DRELEASE_VERSION=1.0.6
 )
 
 vcpkg_cmake_install()
